@@ -1,1 +1,6 @@
-# ExtractString
+ExtractString
+==========
+
+一个简单的Python脚本，用于将指定jar包或zip文件里所有class文件中的字符串常量提取出来，以JSON格式存入txt文件中。  
+修改该文件中字符串的值，然后在利用该脚本重新导入，即可完成对jar包中class文件字符串常量的修改。  
+修改后的jar包将以原文件加'.new'格式存入相同目录中。
