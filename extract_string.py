@@ -2,9 +2,10 @@ import json
 import zipfile
 import os
 import re
+import configparser
 
 
-def parse(t):
+def parse_class(t):
     size = (t[8] << 8) + t[9]
     index = 10
     count = 1
@@ -24,6 +25,7 @@ def parse(t):
             index += 3
         elif 5 == t[index] or 6 == t[index]:
             index += 9
+            count += 1
         else:
             index += 5
         count += 1
@@ -66,33 +68,37 @@ def replace(t, data):
     return out
 
 
-def read():
-    file = input('请输入汉化文件完整路径，如(E:\\test\\jar.txt)。\n无异常处理，乱输后果自负。\n')
+def read(item):
+    file = item.path_jar
     z = zipfile.ZipFile(file, 'r')
     myfilelist = z.namelist()
     out = {}
     for name in myfilelist:
         if 0 < name.find('.class'):
-            parsed = parse(z.read(name))
+            parsed = parse_class(z.read(name))
             if parsed:
                 out[name] = parsed
-    file = input('请输入汉化文件完整路径，如(E:\\test\\jar.txt)。\n无异常处理，乱输后果自负。\n')
-    check_file(file)
+    file = check_file(item.path_txt)
+    # conf = configparser.ConfigParser()
+    # for i in sorted(out.keys()):
+    # conf.add_section(i)
+    # for j in out[i]:
+    # print(j.get('poolindex'),j.get('str'))
+    # conf.set(i, str(j.get('poolindex')), re.sub(r'%',r'%%',j.get('str')))
     with open(file, 'w', encoding='UTF-8') as f:
         f.write(json.dumps(out, indent=4, sort_keys=True, ensure_ascii=False))
-    print('文本信息提取完毕，修改该文件后重新写回原jar包即可。')
+    input('文本信息提取完毕，修改该文件后重新写回原jar包即可。')
     z.close()
 
 
 def write():
-    file = input('请输入jar包完整路径，如(E:\\test\\starfarer_obf.jar)。\n无异常处理，乱输后果自负。\n')
-    txt_file = input('请输入汉化文件完整路径，如(E:\\test\\chinese.txt)。\n无异常处理，乱输后果自负。\n')
+    file = item.path_jar
+    txt_file = item.path_txt
     z = zipfile.ZipFile(file, 'r')
     zz = zipfile.ZipFile(check_file(file + r'.new'), 'w')
     chinese = open(txt_file, 'r', encoding='UTF-8')
     myfilelist = z.namelist()
     all = json.load(chinese)
-    # for name in all:
     for name in myfilelist:
         _before = z.read(name)
         if all.get(name):
@@ -101,7 +107,7 @@ def write():
     z.close()
     zz.close()
     chinese.close()
-    print('文本信息写回完毕。')
+    input('文本信息写回完毕。')
 
 
 def check_file(file_name):
@@ -118,10 +124,56 @@ def check_file(file_name):
     return file_name
 
 
+def read_cfg():
+    conf = configparser.ConfigParser()
+    if not os.path.exists("config.ini"):
+        create_cfg()
+    conf.read("config.ini", encoding='Utf-8')
+    return Item({i[0]: i[1] for i in conf.items('Options')})
+
+
+def change_cfg(msg, opt):
+    value = input(msg)
+    print(value)
+    conf = configparser.ConfigParser()
+    conf.read("config.ini", encoding='Utf-8')
+    conf.set('Options', opt, value)
+    with open("config.ini", 'w', encoding='UTF-8') as f:
+        conf.write(f)
+
+
+def create_cfg():
+    conf = configparser.ConfigParser()
+    conf.add_section('Options')
+    conf.set('Options', 'path_jar', 'temp.jar')
+    conf.set('Options', 'path_txt', 'str.txt')
+    with open("config.ini", 'w', encoding='UTF-8') as f:
+        conf.write(f)
+
+
+class Item:
+    def __init__(self, opt_dict):
+        self.path_jar = opt_dict.get('path_jar')
+        self.path_txt = opt_dict.get('path_txt')
+
+
 if __name__ == '__main__':
-    in_str = input('请输入指令\n1:读jar包\n2:写回jar包\n')
-    if '1' == in_str:
-        read()
-    elif '2' == in_str:
-        write()
-    input('按任意键退出')
+    while 1:
+        os.system('cls')
+        item = read_cfg()
+        in_str = input('''请输入指令
+1:读jar包
+2:写回jar包
+3:更改jar包地址，目前为：%s
+4:更改txt文件地址，目前为：%s
+''' % (item.path_jar, item.path_txt))
+        if '1' == in_str:
+            read(item)
+        elif '2' == in_str:
+            write(item)
+        elif '3' == in_str:
+            change_cfg('请输入jar包地址:\n', 'path_jar')
+        elif '4' == in_str:
+            change_cfg('请输入txt文件地址:\n', 'path_txt')
+        else:
+            break
