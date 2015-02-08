@@ -1,5 +1,7 @@
 import json
 import zipfile
+import os
+import re
 
 
 def parse(t):
@@ -65,7 +67,8 @@ def replace(t, data):
 
 
 def read():
-    z = zipfile.ZipFile(input('请输入jar包完整路径，如(E:\\test\\starfarer_obf.jar)。\n无异常处理，乱输后果自负。\n'), 'r')
+    file = input('请输入汉化文件完整路径，如(E:\\test\\jar.txt)。\n无异常处理，乱输后果自负。\n')
+    z = zipfile.ZipFile(file, 'r')
     myfilelist = z.namelist()
     out = {}
     for name in myfilelist:
@@ -73,17 +76,20 @@ def read():
             parsed = parse(z.read(name))
             if parsed:
                 out[name] = parsed
-    with open(input('请输入汉化文件完整路径，如(E:\\test\\jar.txt)。\n无异常处理，乱输后果自负。\n'), 'w') as f:
-        f.write(json.dumps(out, indent=4))
-    print('文本信息提取完毕，修改该文件后重新写回原jar包即可。\n建议前往http://www.w3cfuns.com/tools.php?mod=json进行文本格式化覆盖原文件，以方便浏览。')
+    file = input('请输入汉化文件完整路径，如(E:\\test\\jar.txt)。\n无异常处理，乱输后果自负。\n')
+    check_file(file)
+    with open(file, 'w', encoding='UTF-8') as f:
+        f.write(json.dumps(out, indent=4, sort_keys=True, ensure_ascii=False))
+    print('文本信息提取完毕，修改该文件后重新写回原jar包即可。')
     z.close()
 
 
 def write():
     file = input('请输入jar包完整路径，如(E:\\test\\starfarer_obf.jar)。\n无异常处理，乱输后果自负。\n')
+    txt_file = input('请输入汉化文件完整路径，如(E:\\test\\chinese.txt)。\n无异常处理，乱输后果自负。\n')
     z = zipfile.ZipFile(file, 'r')
-    zz = zipfile.ZipFile(file + r'.new', 'w')
-    chinese = open(input('请输入汉化文件完整路径，如(E:\\test\\chinese.txt)。\n无异常处理，乱输后果自负。\n'), 'r', encoding='UTF-8')
+    zz = zipfile.ZipFile(check_file(file + r'.new'), 'w')
+    chinese = open(txt_file, 'r', encoding='UTF-8')
     myfilelist = z.namelist()
     all = json.load(chinese)
     # for name in all:
@@ -96,6 +102,20 @@ def write():
     zz.close()
     chinese.close()
     print('文本信息写回完毕。')
+
+
+def check_file(file_name):
+    file_dir = re.findall(r'.+(?=\\[^\\]*$)', file_name)[0]
+    i = 0
+    bk = file_name
+    while os.path.exists(bk):
+        i += 1
+        bk = file_name + '.' + str(i) + '.bk'
+    if i:
+        os.rename(file_name, bk)
+    elif not os.path.exists(file_dir):
+        os.makedirs(file_dir)
+    return file_name
 
 
 if __name__ == '__main__':
