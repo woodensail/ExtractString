@@ -3,6 +3,7 @@ import zipfile
 import os
 import re
 import configparser
+from urllib import request, parse
 
 
 def parse_class(t):
@@ -29,42 +30,58 @@ def parse_class(t):
         else:
             index += 5
         count += 1
-    return [{'str': pool[i], 'poolindex': i} for i in out]
+    return {pool[i]: pool[i] for i in out}
     # return [{'str': pool[i], 'index': indexlist[i], 'poolindex': i} for i in out]
 
 
-def replace(t, data):
-    data = {i.get('poolindex'): i for i in data}
+def replace(t, data_array):
     size = (t[8] << 8) + t[9]
     index = 10
     count = 1
-    last_index = 0
-    out = b''
+    utf = []
+    indexlist = [0] * size
+    pool = [0] * size
     while count < size:
         if 8 == t[index]:
+            utf += [(t[index + 1] << 8) + t[index + 2]]
             index += 3
         elif 1 == t[index]:
-            current = data.get(count)
-            if current:
-                code = current.get('str').encode('UTF-8')
-                n_lengtn = len(code)
-                out += t[last_index:index + 1:]
-                last_index = index + 3 + (t[index + 1] << 8) + t[index + 2]
-                _len = bytearray(2)
-                _len[0] = n_lengtn // 256
-                _len[1] = n_lengtn % 256
-                out += bytes(_len)
-                out += code
             length = (t[index + 1] << 8) + t[index + 2]
+            pool[count] = t[index + 3:index + 3 + length:].decode('UTF-8')
+            indexlist[count] = index
             index += length + 3
+
         elif 7 == t[index]:
             index += 3
         elif 5 == t[index] or 6 == t[index]:
             index += 9
+            count += 1
         else:
             index += 5
         count += 1
+
+    data = {}
+    data_array.reverse()
+    for i in data_array:
+        data.update(i)
+    out = b''
+    last_index = 0
+    for i in utf:
+        if data[pool[i]]:
+            c_index = indexlist[i]
+            code = data[pool[i]].encode('UTF-8')
+            n_lengtn = len(code)
+            out += t[last_index:c_index + 1:]
+            last_index = c_index + 3 + (t[c_index + 1] << 8) + t[c_index + 2]
+            _len = bytearray(2)
+            _len[0] = n_lengtn // 256
+            _len[1] = n_lengtn % 256
+            out += bytes(_len)
+            out += code
     out += t[last_index::]
+
+    print(len(t),len(out))
+    input()
     return out
 
 
@@ -91,22 +108,22 @@ def read(item):
     z.close()
 
 
-def write():
+def write(item):
     file = item.path_jar
     txt_file = item.path_txt
     z = zipfile.ZipFile(file, 'r')
     zz = zipfile.ZipFile(check_file(file + r'.new'), 'w')
-    chinese = open(txt_file, 'r', encoding='UTF-8')
+    txt = open(txt_file, 'r', encoding='UTF-8')
     myfilelist = z.namelist()
-    all = json.load(chinese)
+    txt_data = json.load(txt)
     for name in myfilelist:
         _before = z.read(name)
-        if all.get(name):
-            _before = replace(_before, all.get(name))
+        if txt_data.get(name):
+            _before = replace(_before, [txt_data.get(name)])
         zz.writestr(name, _before)
     z.close()
     zz.close()
-    chinese.close()
+    txt.close()
     input('文本信息写回完毕。')
 
 
