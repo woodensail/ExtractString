@@ -3,11 +3,10 @@ import zipfile
 import os
 import re
 import configparser
-import asyncio
 from urllib import request, parse
 
 
-def parse_class(t):
+def parse_class(t, cn=None, array=False):
     size = (t[8] << 8) + t[9]
     index = 10
     count = 1
@@ -31,8 +30,16 @@ def parse_class(t):
         else:
             index += 5
         count += 1
-    return {pool[i]: pool[i] for i in out}
-    # return [{'str': pool[i], 'index': indexlist[i], 'poolindex': i} for i in out]
+
+    if cn:
+        return1 = [pool[i] for i in out]
+        return2 = parse_class(cn, array=True)
+        return {return1[i]: return2[i] for i in range(len(return1))}
+    elif array:
+        return [pool[i] for i in out]
+    else:
+        return {pool[i]: pool[i] for i in out}
+        # return [{'str': pool[i], 'index': indexlist[i], 'poolindex': i} for i in out]
 
 
 def replace(t, data_array):
@@ -88,15 +95,27 @@ def replace(t, data_array):
 def read(item):
     file = item.path_jar
     z = zipfile.ZipFile(file, 'r')
+    z_c = None
+    if os.path.exists(file + '.cn'):
+        z_c = zipfile.ZipFile(file + '.cn', 'r')
     myfilelist = z.namelist()
     out = {}
     for name in myfilelist:
         if 0 < name.find('.class'):
-            parsed = parse_class(z.read(name))
+            if z_c:
+                parsed = parse_class(z.read(name), cn=z_c.read(name))
+            else:
+                parsed = parse_class(z.read(name))
             if parsed:
                 out[name] = parsed
     file = check_file(item.path_txt)
-
+    # conf = configparser.ConfigParser()
+    # for i in sorted(out.keys()):
+    # conf.add_section(i)
+    # for j in out[i]:
+    # print(j.get('poolindex'),j.get('str'))
+    # conf.set(i, str(j.get('poolindex')), re.sub(r'%',r'%%',j.get('str')))
+    # trans([j for i in out for j in out[i]])
     with open(file, 'w', encoding='UTF-8') as f:
         f.write(json.dumps(out, indent=4, sort_keys=True, ensure_ascii=False))
     input('文本信息提取完毕，修改该文件后重新写回原jar包即可。')
@@ -126,6 +145,10 @@ def write(item):
     txt.close()
     input('文本信息写回完毕。')
 
+
+def update(item):
+    pass
+    
 
 def check_file(file_name):
     file_dir = re.findall(r'.+(?=\\[^\\]*$)', file_name)[0]
@@ -169,6 +192,17 @@ def create_cfg():
         conf.write(f)
 
 
+def trans(data):
+    base = 'http://fanyi.baidu.com/v2transapi?from=en&to=zh&transtype=trans&simple_means_flag=3'
+    base = 'http://openapi.baidu.com/public/2.0/bmt/translate'
+    page = request.urlopen(base, parse.urlencode(
+        {'client_id': 'GdaG95GYEEuCsR1PErPKD5s2', 'q': '\n'.join(data[:10:]), 'from': 'en', 'to': 'zh',
+         'transtype': 'trans',
+         'simple_means_flag': '3'}).encode(encoding='UTF8')).read().decode()
+    # cn = re.findall('"dst":"([^"]*)"', page)
+    print(json.loads(page))
+
+
 class Item:
     def __init__(self, opt_dict):
         self.path_jar = opt_dict.get('path_jar')
@@ -196,6 +230,6 @@ if __name__ == '__main__':
         elif '4' == in_str:
             change_cfg('请输入txt文件地址:\n', 'path_txt')
         elif '5' == in_str:
-            change_cfg('请输入all.txt文件地址:\n', 'path_txt')
+            change_cfg('请输入all.txt文件地址:\n', 'path_all')
         else:
             break
