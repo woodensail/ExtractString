@@ -3,6 +3,7 @@ import zipfile
 import os
 import re
 import configparser
+import asyncio
 from urllib import request, parse
 
 
@@ -66,6 +67,7 @@ def replace(t, data_array):
         data.update(i)
     out = b''
     last_index = 0
+    utf.sort()
     for i in utf:
         if data[pool[i]]:
             c_index = indexlist[i]
@@ -80,8 +82,6 @@ def replace(t, data_array):
             out += code
     out += t[last_index::]
 
-    print(len(t),len(out))
-    input()
     return out
 
 
@@ -96,12 +96,7 @@ def read(item):
             if parsed:
                 out[name] = parsed
     file = check_file(item.path_txt)
-    # conf = configparser.ConfigParser()
-    # for i in sorted(out.keys()):
-    # conf.add_section(i)
-    # for j in out[i]:
-    # print(j.get('poolindex'),j.get('str'))
-    # conf.set(i, str(j.get('poolindex')), re.sub(r'%',r'%%',j.get('str')))
+
     with open(file, 'w', encoding='UTF-8') as f:
         f.write(json.dumps(out, indent=4, sort_keys=True, ensure_ascii=False))
     input('文本信息提取完毕，修改该文件后重新写回原jar包即可。')
@@ -112,14 +107,19 @@ def write(item):
     file = item.path_jar
     txt_file = item.path_txt
     z = zipfile.ZipFile(file, 'r')
+    all_file = item.path_all
     zz = zipfile.ZipFile(check_file(file + r'.new'), 'w')
     txt = open(txt_file, 'r', encoding='UTF-8')
+    all_data = {}
+    if all_file and os.path.exists(all_file):
+        all_data = json.load(open(all_file, 'r', encoding='UTF-8'))
     myfilelist = z.namelist()
     txt_data = json.load(txt)
+    regex = {re.compile(i): all_data[i] for i in all_data}
     for name in myfilelist:
         _before = z.read(name)
         if txt_data.get(name):
-            _before = replace(_before, [txt_data.get(name)])
+            _before = replace(_before, [txt_data.get(name)] + [regex[i] for i in regex if i.findall(name)])
         zz.writestr(name, _before)
     z.close()
     zz.close()
@@ -164,6 +164,7 @@ def create_cfg():
     conf.add_section('Options')
     conf.set('Options', 'path_jar', 'temp.jar')
     conf.set('Options', 'path_txt', 'str.txt')
+    conf.set('Options', 'path_all', 'all.txt')
     with open("config.ini", 'w', encoding='UTF-8') as f:
         conf.write(f)
 
@@ -172,25 +173,29 @@ class Item:
     def __init__(self, opt_dict):
         self.path_jar = opt_dict.get('path_jar')
         self.path_txt = opt_dict.get('path_txt')
+        self.path_all = opt_dict.get('path_all')
 
 
 if __name__ == '__main__':
     while 1:
         os.system('cls')
-        item = read_cfg()
+        _item = read_cfg()
         in_str = input('''请输入指令
 1:读jar包
 2:写回jar包
 3:更改jar包地址，目前为：%s
 4:更改txt文件地址，目前为：%s
-''' % (item.path_jar, item.path_txt))
+5:更改all.txt文件地址，目前为：%s
+''' % (_item.path_jar, _item.path_txt, _item.path_all))
         if '1' == in_str:
-            read(item)
+            read(_item)
         elif '2' == in_str:
-            write(item)
+            write(_item)
         elif '3' == in_str:
             change_cfg('请输入jar包地址:\n', 'path_jar')
         elif '4' == in_str:
             change_cfg('请输入txt文件地址:\n', 'path_txt')
+        elif '5' == in_str:
+            change_cfg('请输入all.txt文件地址:\n', 'path_txt')
         else:
             break
