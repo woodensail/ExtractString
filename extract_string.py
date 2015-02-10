@@ -147,8 +147,38 @@ def write(item):
 
 
 def update(item):
-    pass
-    
+    with open(item.path_txt, 'r', encoding='UTF-8') as f_n, open(item.path_old, 'r', encoding='UTF-8') as f_o:
+        json_o = json.load(f_o)
+        json_n = json.load(f_n)
+        data_o = {}
+        for i in json_o:
+            data_o.update(json_o[i])
+        for i in json_n:
+            c_data = json_n[i]
+            for j in c_data:
+                if data_o.get(j):
+                    c_data[j] = data_o[j]
+    check_file(item.path_txt)
+    with open(item.path_txt, 'w', encoding='UTF-8') as f:
+        f.write(json.dumps(json_n, indent=4, sort_keys=True, ensure_ascii=False))
+
+
+def merge(item):
+    with open(item.path_txt, 'r', encoding='UTF-8') as f_n, open(item.path_old, 'r', encoding='UTF-8') as f_o:
+        json_o = json.load(f_o)
+        json_n = json.load(f_n)
+        for i in json_n:
+            part_data = json_o.get(i)
+            if not part_data:
+                continue
+            c_data = json_n[i]
+            for j in c_data:
+                if part_data.get(j):
+                    c_data[j] = part_data[j]
+    check_file(item.path_txt)
+    with open(item.path_txt, 'w', encoding='UTF-8') as f:
+        f.write(json.dumps(json_n, indent=4, sort_keys=True, ensure_ascii=False))
+
 
 def check_file(file_name):
     file_dir = re.findall(r'.+(?=\\[^\\]*$)', file_name)[0]
@@ -188,6 +218,7 @@ def create_cfg():
     conf.set('Options', 'path_jar', 'temp.jar')
     conf.set('Options', 'path_txt', 'str.txt')
     conf.set('Options', 'path_all', 'all.txt')
+    conf.set('Options', 'path_old', 'old.txt')
     with open("config.ini", 'w', encoding='UTF-8') as f:
         conf.write(f)
 
@@ -208,6 +239,12 @@ class Item:
         self.path_jar = opt_dict.get('path_jar')
         self.path_txt = opt_dict.get('path_txt')
         self.path_all = opt_dict.get('path_all')
+        self.path_old = opt_dict.get('path_old')
+
+
+def test(s):
+    _s = s.split(',')
+    return _s[0], float(_s[1])
 
 
 if __name__ == '__main__':
@@ -220,6 +257,8 @@ if __name__ == '__main__':
 3:更改jar包地址，目前为：%s
 4:更改txt文件地址，目前为：%s
 5:更改all.txt文件地址，目前为：%s
+6:从old.txt向主干txt转移数据
+7:从old.txt向主干txt转移数据「严格模式，需要对照文件名」
 ''' % (_item.path_jar, _item.path_txt, _item.path_all))
         if '1' == in_str:
             read(_item)
@@ -231,5 +270,9 @@ if __name__ == '__main__':
             change_cfg('请输入txt文件地址:\n', 'path_txt')
         elif '5' == in_str:
             change_cfg('请输入all.txt文件地址:\n', 'path_all')
+        elif '6' == in_str:
+            update(_item)
+        elif '7' == in_str:
+            merge(_item)
         else:
             break
