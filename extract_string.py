@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import json
 import zipfile
 import os
@@ -19,8 +20,12 @@ def parse_class(t, cn=None, array=False):
             index += 3
         elif 1 == t[index]:
             length = (t[index + 1] << 8) + t[index + 2]
-            pool[count] = t[index + 3:index + 3 + length:].decode('UTF-8')
-            indexlist[count] = index
+            try:
+                pool[count] = t[index + 3:index + 3 + length:].decode('UTF-8')
+                indexlist[count] = index
+            except:
+                pass
+
             index += length + 3
         elif 7 == t[index]:
             index += 3
@@ -117,6 +122,7 @@ def read(item):
     # conf.set(i, str(j.get('poolindex')), re.sub(r'%',r'%%',j.get('str')))
     # trans([j for i in out for j in out[i]])
     with open(file, 'w', encoding='UTF-8') as f:
+        print(out)
         f.write(json.dumps(out, indent=4, sort_keys=True, ensure_ascii=False))
     input('文本信息提取完毕，修改该文件后重新写回原jar包即可。')
     z.close()
@@ -230,7 +236,6 @@ def trans(data):
         {'client_id': 'GdaG95GYEEuCsR1PErPKD5s2', 'q': '\n'.join(data[:10:]), 'from': 'en', 'to': 'zh',
          'transtype': 'trans',
          'simple_means_flag': '3'}).encode(encoding='UTF8')).read().decode()
-    # cn = re.findall('"dst":"([^"]*)"', page)
     print(json.loads(page))
 
 
@@ -248,7 +253,7 @@ def test(s):
 
 
 if __name__ == '__main__':
-    while 1:
+    while True:
         os.system('cls')
         _item = read_cfg()
         in_str = input('''请输入指令
