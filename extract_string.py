@@ -24,8 +24,7 @@ def parse_class(t, cn=None, array=False):
                 pool[count] = t[index + 3:index + 3 + length:].decode('UTF-8')
                 indexlist[count] = index
             except:
-                pass
-
+                pool[count] = None
             index += length + 3
         elif 7 == t[index]:
             index += 3
@@ -37,13 +36,13 @@ def parse_class(t, cn=None, array=False):
         count += 1
 
     if cn:
-        return1 = [pool[i] for i in out]
+        return1 = [pool[i] for i in out if pool[i] is not None]
         return2 = parse_class(cn, array=True)
         return {return1[i]: return2[i] for i in range(len(return1))}
     elif array:
-        return [pool[i] for i in out]
+        return [pool[i] for i in out if pool[i] is not None]
     else:
-        return {pool[i]: pool[i] for i in out}
+        return {pool[i]: pool[i] for i in out if pool[i] is not None}
         # return [{'str': pool[i], 'index': indexlist[i], 'poolindex': i} for i in out]
 
 
@@ -60,8 +59,11 @@ def replace(t, data_array):
             index += 3
         elif 1 == t[index]:
             length = (t[index + 1] << 8) + t[index + 2]
-            pool[count] = t[index + 3:index + 3 + length:].decode('UTF-8')
-            indexlist[count] = index
+            try:
+                pool[count] = t[index + 3:index + 3 + length:].decode('UTF-8')
+                indexlist[count] = index
+            except:
+                pool[count] = None
             index += length + 3
 
         elif 7 == t[index]:
@@ -81,6 +83,8 @@ def replace(t, data_array):
     last_index = 0
     utf.sort()
     for i in utf:
+        if pool[i] is None:
+            continue
         if data[pool[i]]:
             c_index = indexlist[i]
             code = data[pool[i]].encode('UTF-8')
@@ -122,7 +126,6 @@ def read(item):
     # conf.set(i, str(j.get('poolindex')), re.sub(r'%',r'%%',j.get('str')))
     # trans([j for i in out for j in out[i]])
     with open(file, 'w', encoding='UTF-8') as f:
-        print(out)
         f.write(json.dumps(out, indent=4, sort_keys=True, ensure_ascii=False))
     input('文本信息提取完毕，修改该文件后重新写回原jar包即可。')
     z.close()
@@ -259,12 +262,9 @@ if __name__ == '__main__':
         in_str = input('''请输入指令
 1:读jar包
 2:写回jar包
-3:更改jar包地址，目前为：%s
-4:更改txt文件地址，目前为：%s
-5:更改all.txt文件地址，目前为：%s
 6:从old.txt向主干txt转移数据
 7:从old.txt向主干txt转移数据「严格模式，需要对照文件名」
-''' % (_item.path_jar, _item.path_txt, _item.path_all))
+''')
         if '1' == in_str:
             read(_item)
         elif '2' == in_str:
